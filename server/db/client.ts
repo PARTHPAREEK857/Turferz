@@ -12,11 +12,17 @@ import { applyMigrations } from "./migrate";
  * inside `withTransaction`, which takes an IMMEDIATE write lock; together
  * with the trg_bookings_no_overlap_* triggers this makes double bookings
  * impossible even under concurrent requests.
+ *
+ * On serverless hosts (Vercel), the filesystem is read-only except /tmp:
+ * the database lives at /tmp/turferz.db and is auto-created and seeded on
+ * first use of each instance (demo data resets on redeploy/cold starts —
+ * fine for demos; use a hosted Postgres/MySQL for persistence later).
  */
 
 export type DbRow = Record<string, unknown>;
 
 function resolveDbPath(): string {
+  if (process.env.VERCEL) return "/tmp/turferz.db";
   const raw = process.env.DATABASE_URL?.trim() || "file:./data/dev.db";
   const file = raw.startsWith("file:") ? raw.slice(5) : raw;
   if (path.isAbsolute(file)) return file;
@@ -42,6 +48,20 @@ function openDatabase(): DatabaseSync {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA busy_timeout = 5000");
   applyMigrations(db);
+
+  // publish the connection before seeding: the seed helpers call getDb()
+  globalThis.__turferzDb = db;
+
+  // On ephemeral serverless instances, seed demo data when the database is
+  // brand-new and empty so the deployed site is instantly explorable.
+  if (process.env.VERCEL || process.env.TURFERZ_AUTOSEED === "1") {
+    const row = db.prepare("SELECT COUNT(*) AS n FROM users").get() as { n: number };
+    if (row.n === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { seedDemoData } = require("./seed-demo") as typeof import("./seed-demo");
+      seedDemoData({ reset: false });
+    }
+  }
   return db;
 }
 

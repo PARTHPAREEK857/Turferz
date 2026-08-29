@@ -106,6 +106,25 @@ Errors use a consistent envelope: `{ "error": { "code", "message", "fieldErrors?
 - **tournament** — registration, capacity, deadlines, duplicate users/team names, squad bounds
 - **api** — end-to-end HTTP flows through the real route handlers (auth cookies, validation shapes, 401/409 handling)
 
+## Deploying (Vercel)
+
+The app is configured to deploy on Vercel with zero code changes:
+
+1. Push this repository to GitHub.
+2. On [vercel.com](https://vercel.com) → **Sign up with GitHub** (free).
+3. **Add New → Project → Import** the `Turferz` repository.
+4. Framework preset is auto-detected (Next.js). Leave defaults, click **Deploy**.
+5. When finished you get a public URL like `turferz.vercel.app`. Sign in with
+   `demo@turferz.app` / `demo1234`.
+6. Recommended: in project **Settings → Environment Variables**, add
+   `AUTH_SECRET` (any long random string).
+
+How it works on Vercel: the SQLite database lives in the instance's `/tmp`
+(writable) and is auto-created and seeded with demo data on first request.
+That means demo data (bookings/registrations) may reset after redeploys or
+cold starts — perfect for demos; for production, switch `DATABASE_URL` to a
+hosted Postgres/MySQL and port the schema.
+
 ## Roadmap (foundations already in place)
 
 Payments · reviews & ratings · turf-owner accounts and dashboards · admin console · tournament fixtures, standings & live scoring · teams & player profiles · notifications · location-based search · offers/memberships.

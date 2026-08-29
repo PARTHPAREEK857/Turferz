@@ -19,10 +19,13 @@ async function main(): Promise<void> {
   }
 
   const { getDb } = await import("../server/db/client");
-  const { seed } = await import("./seed");
+  const { seedDemoData } = await import("../server/db/seed-demo");
 
-  getDb(); // opens the database and applies migrations
-  await seed();
+  getDb();
+  seedDemoData({ reset: true });
+  console.log("Seeded Turferz database:");
+  console.log("  • 2 sports, 10 turfs, 4 tournaments");
+  console.log("  • demo login → demo@turferz.app / demo1234");
   console.log("Setup complete. Run `npm run dev` to start Turferz.");
 }
 
