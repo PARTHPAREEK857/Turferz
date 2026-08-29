@@ -1,0 +1,164 @@
+/**
+ * SQLite schema as a TS constant — no runtime file reads, so it works inside
+ * serverless bundles (e.g. Vercel) where arbitrary files may not be included.
+ * Applied by server/db/migrate.ts; versioned via PRAGMA user_version.
+ */
+
+export const SCHEMA_SQL = `
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS users (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL CHECK (length(trim(name)) >= 2),
+  email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  phone         TEXT,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'USER' CHECK (role IN ('USER', 'ADMIN')),
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sports (
+  id         TEXT PRIMARY KEY,
+  slug       TEXT NOT NULL UNIQUE,
+  name       TEXT NOT NULL,
+  tagline    TEXT,
+  icon       TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active  INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS turfs (
+  id             TEXT PRIMARY KEY,
+  slug           TEXT NOT NULL UNIQUE,
+  name           TEXT NOT NULL,
+  city           TEXT NOT NULL,
+  area           TEXT NOT NULL,
+  address        TEXT NOT NULL,
+  description    TEXT NOT NULL,
+  surface        TEXT NOT NULL,
+  price_per_hour INTEGER NOT NULL CHECK (price_per_hour > 0),
+  open_hour      INTEGER NOT NULL CHECK (open_hour BETWEEN 0 AND 23),
+  close_hour     INTEGER NOT NULL CHECK (close_hour BETWEEN 1 AND 24),
+  amenities      TEXT NOT NULL DEFAULT '[]',
+  is_active      INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+  created_at     TEXT NOT NULL,
+  updated_at     TEXT NOT NULL,
+  CHECK (close_hour > open_hour)
+);
+
+CREATE TABLE IF NOT EXISTS turf_images (
+  id         TEXT PRIMARY KEY,
+  turf_id    TEXT NOT NULL REFERENCES turfs (id) ON DELETE CASCADE,
+  url        TEXT NOT NULL,
+  alt        TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_turf_images_turf ON turf_images (turf_id, sort_order);
+
+CREATE TABLE IF NOT EXISTS turf_sports (
+  turf_id  TEXT NOT NULL REFERENCES turfs (id) ON DELETE CASCADE,
+  sport_id TEXT NOT NULL REFERENCES sports (id) ON DELETE CASCADE,
+  PRIMARY KEY (turf_id, sport_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_turf_sports_sport ON turf_sports (sport_id);
+
+CREATE TABLE IF NOT EXISTS bookings (
+  id            TEXT PRIMARY KEY,
+  code          TEXT NOT NULL UNIQUE,
+  user_id       TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  turf_id       TEXT NOT NULL REFERENCES turfs (id) ON DELETE CASCADE,
+  sport_id      TEXT REFERENCES sports (id) ON DELETE SET NULL,
+  date          TEXT NOT NULL CHECK (length(date) = 10),
+  start_minutes INTEGER NOT NULL CHECK (start_minutes BETWEEN 0 AND 1439),
+  end_minutes   INTEGER NOT NULL CHECK (end_minutes BETWEEN 1 AND 1440),
+  status        TEXT NOT NULL DEFAULT 'CONFIRMED' CHECK (status IN ('CONFIRMED', 'CANCELLED')),
+  total_amount  INTEGER NOT NULL CHECK (total_amount >= 0),
+  notes         TEXT,
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL,
+  CHECK (end_minutes > start_minutes)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bookings_slot ON bookings (turf_id, date, status);
+CREATE INDEX IF NOT EXISTS idx_bookings_user ON bookings (user_id, date);
+
+CREATE TRIGGER IF NOT EXISTS trg_bookings_no_overlap_insert
+BEFORE INSERT ON bookings
+WHEN NEW.status = 'CONFIRMED'
+BEGIN
+  SELECT RAISE (ABORT, 'SLOT_TAKEN')
+  WHERE EXISTS (
+    SELECT 1 FROM bookings b
+    WHERE b.turf_id = NEW.turf_id
+      AND b.date = NEW.date
+      AND b.status = 'CONFIRMED'
+      AND b.start_minutes < NEW.end_minutes
+      AND b.end_minutes > NEW.start_minutes
+  );
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_bookings_no_overlap_update
+BEFORE UPDATE ON bookings
+WHEN NEW.status = 'CONFIRMED'
+BEGIN
+  SELECT RAISE (ABORT, 'SLOT_TAKEN')
+  WHERE EXISTS (
+    SELECT 1 FROM bookings b
+    WHERE b.turf_id = NEW.turf_id
+      AND b.date = NEW.date
+      AND b.status = 'CONFIRMED'
+      AND b.id != NEW.id
+      AND b.start_minutes < NEW.end_minutes
+      AND b.end_minutes > NEW.start_minutes
+  );
+END;
+
+CREATE TABLE IF NOT EXISTS tournaments (
+  id                    TEXT PRIMARY KEY,
+  slug                  TEXT NOT NULL UNIQUE,
+  title                 TEXT NOT NULL,
+  description           TEXT NOT NULL,
+  sport_id              TEXT NOT NULL REFERENCES sports (id),
+  turf_id               TEXT REFERENCES turfs (id) ON DELETE SET NULL,
+  starts_at             TEXT NOT NULL,
+  ends_at               TEXT NOT NULL,
+  registration_deadline TEXT NOT NULL,
+  format                TEXT NOT NULL,
+  entry_fee             INTEGER NOT NULL CHECK (entry_fee >= 0),
+  prize_details         TEXT NOT NULL,
+  max_teams             INTEGER NOT NULL CHECK (max_teams > 0),
+  min_players           INTEGER NOT NULL CHECK (min_players > 0),
+  max_players           INTEGER NOT NULL,
+  banner_url            TEXT,
+  status                TEXT NOT NULL DEFAULT 'PUBLISHED'
+                        CHECK (status IN ('DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED')),
+  created_at            TEXT NOT NULL,
+  updated_at            TEXT NOT NULL,
+  CHECK (starts_at < ends_at),
+  CHECK (min_players <= max_players)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tournaments_status ON tournaments (status, starts_at);
+
+CREATE TABLE IF NOT EXISTS tournament_registrations (
+  id             TEXT PRIMARY KEY,
+  tournament_id  TEXT NOT NULL REFERENCES tournaments (id) ON DELETE CASCADE,
+  user_id        TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  team_name      TEXT NOT NULL,
+  captain_name   TEXT NOT NULL,
+  contact_phone  TEXT NOT NULL,
+  player_count   INTEGER NOT NULL CHECK (player_count > 0),
+  status         TEXT NOT NULL DEFAULT 'CONFIRMED' CHECK (status IN ('CONFIRMED', 'CANCELLED')),
+  created_at     TEXT NOT NULL,
+  updated_at     TEXT NOT NULL,
+  UNIQUE (tournament_id, team_name),
+  UNIQUE (tournament_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_registrations_user ON tournament_registrations (user_id);
+CREATE INDEX IF NOT EXISTS idx_registrations_tournament ON tournament_registrations (tournament_id, status);
+`;

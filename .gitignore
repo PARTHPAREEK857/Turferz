@@ -30,8 +30,16 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files: local dev .env is committed (contains no real secrets).
+# Keep anything that looks secret ignored.
+.env.local
+.env.*.local
+
+# database files (created by `npm run setup`)
+data/
+*.db
+*.db-shm
+*.db-wal
 
 # vercel
 .vercel

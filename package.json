@@ -2,25 +2,41 @@
   "name": "turferz-app",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node scripts/launcher.cjs npx next dev",
+    "build": "node scripts/launcher.cjs npx next build",
+    "start": "node scripts/launcher.cjs npx next start",
+    "setup": "node scripts/launcher.cjs npx tsx scripts/setup.ts",
+    "db:reset": "node scripts/launcher.cjs npx tsx scripts/setup.ts --reset",
+    "seed": "node scripts/launcher.cjs npx tsx scripts/seed.ts",
+    "test": "node scripts/launcher.cjs npx vitest run",
+    "test:watch": "node scripts/launcher.cjs npx vitest",
     "lint": "eslint"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "geist": "^1.7.2",
+    "jose": "^6.2.10",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.12",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }
