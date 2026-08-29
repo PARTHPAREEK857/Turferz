@@ -3,24 +3,37 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "NODE_OPTIONS=--experimental-sqlite next dev",
+    "build": "NODE_OPTIONS=--experimental-sqlite next build",
+    "start": "NODE_OPTIONS=--experimental-sqlite next start",
+    "setup": "NODE_OPTIONS=--experimental-sqlite tsx scripts/setup.ts",
+    "db:reset": "NODE_OPTIONS=--experimental-sqlite tsx scripts/setup.ts --reset",
+    "seed": "NODE_OPTIONS=--experimental-sqlite tsx scripts/seed.ts",
+    "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
+    "test:watch": "NODE_OPTIONS=--experimental-sqlite vitest",
     "lint": "eslint"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "geist": "^1.7.2",
+    "jose": "^6.2.10",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^24.13.3",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "16.3.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.12",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }
